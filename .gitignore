@@ -1,0 +1,38 @@
+# 資料集和模型檔案
+lab3_dataset/
+checkpoints/
+models/
+
+# Python 相關
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+ENV/
+
+# 系統檔案
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE 相關
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 日誌和輸出
+logs/
+output/
+
+# 其他
+*.log
+
+*.ckpt
+*VQGAN.pt 
