@@ -18,4 +18,4 @@ python inpainting.py \
     --sweet-spot 8 \
     --total-iter 12 \
     --mask-func linear \
-    --predicted-path ./inpainting_results
+    --predicted-parent-path ./inpainting_results

@@ -134,18 +134,24 @@ if __name__ == '__main__':
     parser.add_argument('--sweet-spot', type=int, default=0, help='sweet spot: the best step in total iteration')
     parser.add_argument('--total-iter', type=int, default=0, help='total step for mask scheduling')
     parser.add_argument('--mask-func', type=str, default='0', help='mask scheduling function')
-    parser.add_argument('--predicted-path', type=str, default='./inpainting_results', help='Path to save predicted images.')
+    parser.add_argument('--predicted-parent_path', type=str, default='./inpainting_results', help='Path to save predicted images.')
+    parser.add_argument('--predicted-path', type=str, default='', help='Path to save predicted images.')
 
+    
     args = parser.parse_args()
 
     t=MaskedImage(args)
     MaskGit_CONFIGS = yaml.safe_load(open(args.MaskGitConfig, 'r'))
     maskgit = MaskGIT(args, MaskGit_CONFIGS)
 
-    os.makedirs(args.predicted_path, exist_ok=True)
-    from datetime import datetime
-    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_path = os.path.join(args.predicted_path, current_time)
+    if args.predicted_path:
+        out_path = args.predicted_path
+    else:
+        os.makedirs(args.predicted_parent_path, exist_ok=True)
+        from datetime import datetime
+        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out_path = os.path.join(args.predicted_parent_path, current_time)
+    
     os.makedirs(out_path, exist_ok=True)
 
     i=0

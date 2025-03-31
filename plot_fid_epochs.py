@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 from tqdm import tqdm
+
 def run_inpainting(checkpoint_path, output_dir):
     """執行 inpainting 腳本"""
     cmd = [
@@ -25,11 +26,13 @@ def run_inpainting(checkpoint_path, output_dir):
 
 def calculate_fid(output_dir):
     """計算 FID score"""
+    # 確保使用絕對路徑
+    output_dir_abs = os.path.abspath(os.path.join(output_dir, "test_results"))
     cmd = [
         "cd", "faster-pytorch-fid/",
         "&&",
         "python", "fid_score_gpu.py",
-        "--predicted-path", output_dir,
+        "--predicted-path", output_dir_abs,
         "--device", "cuda:0"
     ]
     result = subprocess.run(" ".join(cmd), shell=True, capture_output=True, text=True)
@@ -49,22 +52,26 @@ def main():
         if file.startswith("epoch_") and file.endswith(".pth"):
             epoch = int(file.split("_")[1].split(".")[0])
             checkpoint_path = os.path.join(checkpoint_dir, file)
-            output_dir = f"{checkpoint_dir}/inpainting_results_epoch_{epoch}"
+            output_dir = os.path.abspath(f"{checkpoint_dir}/inpainting_results_epoch_{epoch}")
             
-            print(f"處理 epoch {epoch}...")
+            print(f"\n處理 epoch {epoch}...")
             
             # 執行 inpainting
             run_inpainting(checkpoint_path, output_dir)
             
             # 計算 FID score
             fid_score = calculate_fid(output_dir)
-
-            print(f"Epoch {epoch}: FID = {fid_score}")
             
             if fid_score is not None:
                 epochs.append(epoch)
                 fid_scores.append(fid_score)
                 print(f"Epoch {epoch}: FID = {fid_score}")
+            else:
+                print(f"警告：無法計算 epoch {epoch} 的 FID score")
+    
+    if not epochs:
+        print("錯誤：沒有成功計算任何 FID score")
+        return
     
     # 繪製圖表
     plt.figure(figsize=(10, 6))
@@ -79,8 +86,7 @@ def main():
     plt.savefig(f'{checkpoint_dir}/fid_vs_epoch.eps', format='eps', bbox_inches='tight')
     plt.close()
     
-    print(f"圖表已保存為 {checkpoint_dir}/fid_vs_epoch.png 和 {checkpoint_dir}/fid_vs_epoch.eps")
-
+    print(f"\n圖表已保存為 {checkpoint_dir}/fid_vs_epoch.png 和 {checkpoint_dir}/fid_vs_epoch.eps")
 
     # 將 FID score 存成 CSV
     import csv
