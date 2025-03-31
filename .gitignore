@@ -1,7 +1,7 @@
 # 資料集和模型檔案
 lab3_dataset/
 checkpoints/
-models/
+output
 
 # Python 相關
 __pycache__/
