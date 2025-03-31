@@ -36,3 +36,6 @@ output/
 
 *.ckpt
 *VQGAN.pt 
+
+inpainting_results
+inpainting_results_epoch_*

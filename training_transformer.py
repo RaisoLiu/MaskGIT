@@ -166,6 +166,8 @@ if __name__ == '__main__':
         train_transformer.writer.add_scalar('Loss/val', val_loss, epoch)
 
         print(f'Epoch {epoch} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
+        # Plot loss curves
+        plot_losses(train_losses, val_losses, output_path)
 
         # Save model every save_per_epoch epochs
         if epoch % args.save_per_epoch == 0:
@@ -177,8 +179,7 @@ if __name__ == '__main__':
             torch.save(train_transformer.model.transformer.state_dict(), f"{output_path}/best_val.pth")
 
         if epoch == args.epochs:
-            # Plot loss curves
-            plot_losses(train_losses, val_losses, output_path)
+            
             # Save last model
             torch.save(train_transformer.model.transformer.state_dict(), f"{output_path}/last.pth")
             # Close writer

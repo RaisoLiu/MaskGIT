@@ -11,6 +11,7 @@ import os
 from models import MaskGit as VQGANTransformer
 import yaml
 import torch.nn.functional as F
+from tqdm import tqdm
 
 class MaskGIT:
     def __init__(self, args, MaskGit_CONFIGS):
@@ -31,7 +32,7 @@ class MaskGIT:
 
 ##TODO3 step1-1: total iteration decoding  
 #mask_b: iteration decoding initial mask, where mask_b is true means mask
-    def inpainting(self,image,mask_b,i): #MakGIT inference
+    def inpainting(self,image,mask_b,i, out_path): #MakGIT inference
         maska = torch.zeros(self.total_iter, 3, 16, 16) #save all iterations of masks in latent domain
         imga = torch.zeros(self.total_iter+1, 3, 64, 64)#save all iterations of decoded images
         mean = torch.tensor([0.4868, 0.4341, 0.3844],device=self.device).view(3, 1, 1)  
@@ -41,23 +42,23 @@ class MaskGIT:
 
         self.model.eval()
         with torch.no_grad():
-            z_indices = None #z_indices: masked tokens (b,16*16)
+            z_indices = self.model.encode_to_z(image[0].unsqueeze(0))[1] # z_indices: masked tokens (b,16*16)
             mask_num = mask_b.sum() #total number of mask token 
             z_indices_predict=z_indices
             mask_bc=mask_b
             mask_b=mask_b.to(device=self.device)
             mask_bc=mask_bc.to(device=self.device)
             
-            raise Exception('TODO3 step1-1!')
-            ratio = 0
+            step_ratio = 0
             #iterative decoding for loop design
             #Hint: it's better to save original mask and the updated mask by scheduling separately
             for step in range(self.total_iter):
                 if step == self.sweet_spot:
                     break
-                ratio = None #this should be updated
+                
+                step_ratio = (step + 1) / (self.total_iter)
     
-                z_indices_predict, mask_bc = self.model.inpainting()
+                z_indices_predict, mask_bc = self.model.inpainting(z_indices_predict, mask_bc, mask_num, step_ratio, self.mask_func)
 
                 #static method yon can modify or not, make sure your visualization results are correct
                 mask_i=mask_bc.view(1, 16, 16)
@@ -73,11 +74,14 @@ class MaskGIT:
                 imga[step+1]=dec_img_ori #get decoded image
 
             ##decoded image of the sweet spot only, the test_results folder path will be the --predicted-path for fid score calculation
-            vutils.save_image(dec_img_ori, os.path.join("test_results", f"image_{i:03d}.png"), nrow=1) 
+            os.makedirs(os.path.join(out_path, "test_results"), exist_ok=True)
+            vutils.save_image(dec_img_ori, os.path.join(out_path, "test_results", f"image_{i:03d}.png"), nrow=1) 
 
             #demo score 
-            vutils.save_image(maska, os.path.join("mask_scheduling", f"test_{i}.png"), nrow=10) 
-            vutils.save_image(imga, os.path.join("imga", f"test_{i}.png"), nrow=7)
+            os.makedirs(os.path.join(out_path, "mask_scheduling"), exist_ok=True)
+            vutils.save_image(maska, os.path.join(out_path, "mask_scheduling", f"test_{i}.png"), nrow=10) 
+            os.makedirs(os.path.join(out_path,  "imga"), exist_ok=True)
+            vutils.save_image(imga, os.path.join(out_path,  "imga", f"test_{i}.png"), nrow=7)
 
 
 
@@ -130,6 +134,7 @@ if __name__ == '__main__':
     parser.add_argument('--sweet-spot', type=int, default=0, help='sweet spot: the best step in total iteration')
     parser.add_argument('--total-iter', type=int, default=0, help='total step for mask scheduling')
     parser.add_argument('--mask-func', type=str, default='0', help='mask scheduling function')
+    parser.add_argument('--predicted-path', type=str, default='./inpainting_results', help='Path to save predicted images.')
 
     args = parser.parse_args()
 
@@ -137,13 +142,27 @@ if __name__ == '__main__':
     MaskGit_CONFIGS = yaml.safe_load(open(args.MaskGitConfig, 'r'))
     maskgit = MaskGIT(args, MaskGit_CONFIGS)
 
+    os.makedirs(args.predicted_path, exist_ok=True)
+    from datetime import datetime
+    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_path = os.path.join(args.predicted_path, current_time)
+    os.makedirs(out_path, exist_ok=True)
+
     i=0
-    for image, mask in zip(t.mi_ori, t.mask_ori):
+    image_list = zip(t.mi_ori, t.mask_ori)
+    for image, mask in tqdm(image_list):
         image=image.to(device=args.device)
         mask=mask.to(device=args.device)
         mask_b=t.get_mask_latent(mask)       
-        maskgit.inpainting(image,mask_b,i)
+        maskgit.inpainting(image,mask_b,i, out_path)
         i+=1
         
+
+    # 將所有的 arg 使用 yaml 存到 out_path 當中
+    arg_dict = vars(args)
+    with open(os.path.join(out_path, 'args.yml'), 'w') as f:
+        yaml.dump(arg_dict, f, default_flow_style=False)
+
+    
 
 
