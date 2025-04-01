@@ -12,10 +12,10 @@ python inpainting.py \
     --partial 1.0 \
     --num_workers 4 \
     --MaskGitConfig config/MaskGit.yml \
-    --load-transformer-ckpt-path checkpoints/20250331_084501/best_val.pth \
+    --load-transformer-ckpt-path /home/raiso/lab3/checkpoints/v100-epoch200/epoch_220.pth \
     --test-maskedimage-path ./lab3_dataset/masked_image \
     --test-mask-path ./lab3_dataset/mask64 \
     --sweet-spot 8 \
     --total-iter 12 \
-    --mask-func linear \
-    --predicted-parent-path ./inpainting_results
+    --mask-func cosine \
+    --predicted-parent_path ./inpainting_results

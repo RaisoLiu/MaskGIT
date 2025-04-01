@@ -78,9 +78,11 @@ class TrainTransformer:
         return optimizer,scheduler
     
 
-def plot_losses(train_losses, val_losses, output_path):
+def save_losses(train_losses, val_losses, output_path):
     import matplotlib.pyplot as plt
+    import pandas as pd
     
+    # 繪製損失圖表
     plt.figure(figsize=(10,6))
     plt.plot(train_losses, label='Training Loss')
     plt.plot(val_losses, label='Validation Loss') 
@@ -90,13 +92,21 @@ def plot_losses(train_losses, val_losses, output_path):
     plt.legend()
     plt.grid(True)
     
-    # Save as PNG
+    # 儲存為 PNG
     plt.savefig(f"{output_path}/loss_plot.png", dpi=300, bbox_inches='tight')
     
-    # Save as EPS
+    # 儲存為 EPS
     plt.savefig(f"{output_path}/loss_plot.eps", format='eps', bbox_inches='tight')
     
     plt.close()
+    
+    # 儲存為 CSV
+    df = pd.DataFrame({
+        'epoch': range(1, len(train_losses) + 1),
+        'train_loss': train_losses,
+        'val_loss': val_losses
+    })
+    df.to_csv(f"{output_path}/losses.csv", index=False)
 
 
 if __name__ == '__main__':
@@ -167,7 +177,7 @@ if __name__ == '__main__':
 
         print(f'Epoch {epoch} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
         # Plot loss curves
-        plot_losses(train_losses, val_losses, output_path)
+        save_losses(train_losses, val_losses, output_path)
 
         # Save model every save_per_epoch epochs
         if epoch % args.save_per_epoch == 0:

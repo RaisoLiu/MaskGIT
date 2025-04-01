@@ -4,8 +4,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 from tqdm import tqdm
+from natsort import natsorted
+import argparse
 
-def run_inpainting(checkpoint_path, output_dir):
+def run_inpainting(checkpoint_path, output_dir, mask_func, total_iter, sweet_spot):
     """執行 inpainting 腳本"""
     cmd = [
         "python", "inpainting.py",
@@ -17,9 +19,9 @@ def run_inpainting(checkpoint_path, output_dir):
         "--load-transformer-ckpt-path", checkpoint_path,
         "--test-maskedimage-path", "./lab3_dataset/masked_image",
         "--test-mask-path", "./lab3_dataset/mask64",
-        "--sweet-spot", "8",
-        "--total-iter", "12",
-        "--mask-func", "linear",
+        "--sweet-spot", str(sweet_spot),
+        "--total-iter", str(total_iter),
+        "--mask-func", mask_func,
         "--predicted-path", output_dir
     ]
     subprocess.run(cmd, check=True)
@@ -43,12 +45,37 @@ def calculate_fid(output_dir):
     return None
 
 def main():
-    checkpoint_dir = "/home/raiso/lab3/checkpoints/20250331_084501"
+    # 設定命令行參數
+    parser = argparse.ArgumentParser(description='計算不同 epoch 的 FID score 並繪製圖表')
+    parser.add_argument('checkpoint_dir', type=str, help='checkpoint 資料夾的路徑')
+    parser.add_argument('--mask-func', type=str, default='linear',
+                      choices=['linear', 'cosine', 'square', 'sqrt', 'sine_linear', 'constant'],
+                      help='遮罩函數類型 (預設: linear)')
+    parser.add_argument('--total-iter', type=int, default=12,
+                      help='總迭代次數 (預設: 12)')
+    parser.add_argument('--sweet-spot', type=int, default=12,
+                      help='sweet spot 值 (預設: 12)')
+    args = parser.parse_args()
+    
+    # 確保 checkpoint_dir 是絕對路徑
+    checkpoint_dir = os.path.abspath(args.checkpoint_dir)
+    
+    # 檢查資料夾是否存在
+    if not os.path.exists(checkpoint_dir):
+        print(f"錯誤：資料夾 {checkpoint_dir} 不存在")
+        return
+    
+    print(f"使用參數：")
+    print(f"- 檢查點路徑：{checkpoint_dir}")
+    print(f"- 遮罩函數：{args.mask_func}")
+    print(f"- 總迭代次數：{args.total_iter}")
+    print(f"- Sweet spot：{args.sweet_spot}")
+    
     epochs = []
     fid_scores = []
     
     # 遍歷所有 epoch checkpoints
-    for file in tqdm(sorted(os.listdir(checkpoint_dir))):
+    for file in tqdm(natsorted(os.listdir(checkpoint_dir))):
         if file.startswith("epoch_") and file.endswith(".pth"):
             epoch = int(file.split("_")[1].split(".")[0])
             checkpoint_path = os.path.join(checkpoint_dir, file)
@@ -57,7 +84,7 @@ def main():
             print(f"\n處理 epoch {epoch}...")
             
             # 執行 inpainting
-            run_inpainting(checkpoint_path, output_dir)
+            run_inpainting(checkpoint_path, output_dir, args.mask_func, args.total_iter, args.sweet_spot)
             
             # 計算 FID score
             fid_score = calculate_fid(output_dir)
@@ -78,7 +105,7 @@ def main():
     plt.plot(epochs, fid_scores, 'b-o', linewidth=2, markersize=8)
     plt.xlabel('Epoch')
     plt.ylabel('FID Score')
-    plt.title('FID Score vs. Epoch')
+    plt.title(f'FID Score vs. Epoch (mask_func={args.mask_func}, total_iter={args.total_iter}, sweet_spot={args.sweet_spot})')
     plt.grid(True)
     
     # 保存圖表
@@ -98,8 +125,9 @@ def main():
     csv_path = f'{checkpoint_dir}/fid_scores.csv'
     with open(csv_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['Epoch', 'FID_Score'])  # 寫入標題行
-        writer.writerows(data)  # 寫入數據
+        writer.writerow(['Epoch', 'FID_Score', 'Mask_Func', 'Total_Iter', 'Sweet_Spot'])  # 寫入標題行
+        for row in data:
+            writer.writerow([row[0], row[1], args.mask_func, args.total_iter, args.sweet_spot])  # 寫入數據
     
     print(f"FID scores 已保存為 CSV 文件: {csv_path}")
 
