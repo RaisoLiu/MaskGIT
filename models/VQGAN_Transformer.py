@@ -63,37 +63,20 @@ class MaskGit(nn.Module):
         z_indices_with_mask = mask_bc * self.mask_token_id + (~mask_bc) * z_indices_predict
         logits = self.transformer(z_indices_with_mask)
         logits = logits[0]
-        # print('logits', logits.shape)
-        #FIND MAX probability for each token value
-        # 使用 softmax 將 logits 轉換為概率分佈
         probs = F.softmax(logits, dim=-1)
-        
-        # 將 mask_token_id 的概率設為 0，確保不會被採樣到
         probs[:, self.mask_token_id] = 0
-        
-        # 重新歸一化概率分佈
         probs = probs / probs.sum(dim=-1, keepdim=True)
-        
-        # 從修改後的概率分佈中採樣
         z_indices_predict = torch.multinomial(probs, num_samples=1).squeeze(-1)
-
-        # 計算每個 token 的預測機率
         z_indices_predict_prob = probs.gather(1, z_indices_predict.unsqueeze(-1)).squeeze(-1)
-        
-        # 將不在 mask 中的 token 機率設為無限大
-        # 這確保了非 mask 區域的 token 不會被更改
         z_indices_predict_prob = torch.where(
             mask_bc,
             z_indices_predict_prob,
             torch.tensor(float('inf'), device=z_indices_predict_prob.device)
         )
 
-
         mask_ratio = self.gamma_func(mask_func)(step_ratio)
         mask_len = torch.floor(mask_num * mask_ratio).long()
-        #predicted probabilities add temperature annealing gumbel noise as confidence
         g = torch.distributions.gumbel.Gumbel(0, 1).sample(z_indices_predict_prob.shape).to(z_indices_predict_prob.device)
-
         temperature = self.choice_temperature * (1 - step_ratio)
         confidence = z_indices_predict_prob + temperature * g
         
